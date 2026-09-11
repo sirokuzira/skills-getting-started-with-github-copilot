@@ -12,6 +12,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Clear loading message
       activitiesList.innerHTML = "";
+      activitySelect.length = 1;
 
       // Populate activities list
       Object.entries(activities).forEach(([name, details]) => {
@@ -30,7 +31,23 @@ document.addEventListener("DOMContentLoaded", () => {
             ${
               details.participants.length > 0
                 ? `<ul>${details.participants
-                    .map((participant) => `<li>${participant}</li>`)
+                    .map(
+                      (participant) => `
+                        <li>
+                          <span>${participant}</span>
+                          <button
+                            class="delete-participant"
+                            type="button"
+                            data-activity="${encodeURIComponent(name)}"
+                            data-participant="${encodeURIComponent(participant)}"
+                            aria-label="Unregister ${participant} from ${name}"
+                            title="Unregister participant"
+                          >
+                            &times;
+                          </button>
+                        </li>
+                      `
+                    )
                     .join("")}</ul>`
                 : "<p class=\"no-participants\">No participants yet.</p>"
             }
@@ -88,6 +105,34 @@ document.addEventListener("DOMContentLoaded", () => {
       messageDiv.className = "error";
       messageDiv.classList.remove("hidden");
       console.error("Error signing up:", error);
+    }
+  });
+
+  activitiesList.addEventListener("click", async (event) => {
+    const deleteButton = event.target.closest(".delete-participant");
+    if (!deleteButton) {
+      return;
+    }
+
+    deleteButton.disabled = true;
+
+    try {
+      const activity = decodeURIComponent(deleteButton.dataset.activity);
+      const participant = decodeURIComponent(deleteButton.dataset.participant);
+      const response = await fetch(
+        `/activities/${encodeURIComponent(activity)}/participants?email=${encodeURIComponent(participant)}`,
+        { method: "DELETE" }
+      );
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.detail || "Failed to unregister participant");
+      }
+
+      await fetchActivities();
+    } catch (error) {
+      deleteButton.disabled = false;
+      console.error("Error unregistering participant:", error);
     }
   });
 
